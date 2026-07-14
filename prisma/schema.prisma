@@ -1,0 +1,509 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  MANAGER
+  CASHIER
+  CUSTOMER
+}
+
+enum MenuItemStatus {
+  ACTIVE
+  HIDDEN
+  OUT_OF_STOCK
+  DISABLED
+}
+
+enum SpicyLevel {
+  NONE
+  MILD
+  MEDIUM
+  HOT
+  EXTRA_HOT
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  WALLET
+  MIXED
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+}
+
+enum StockMovementType {
+  STOCK_IN
+  STOCK_OUT
+  ADJUSTMENT
+  WASTE
+}
+
+enum MembershipLevel {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum QrType {
+  BRANCH
+  TABLE
+}
+
+enum CouponType {
+  PERCENT
+  FLAT
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+// ---------------------------------------------------------------------------
+// Core / Auth
+// ---------------------------------------------------------------------------
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  address   String?
+  contact   String?
+  gstVat    String?
+  currency  String   @default("INR")
+  language  String   @default("en")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  categories     Category[]
+  menuItems      MenuItem[]
+  tables         RestaurantTable[]
+  qrCodes        QRCode[]
+  inventoryItems InventoryItem[]
+  suppliers      Supplier[]
+  purchaseOrders PurchaseOrder[]
+  orders         Order[]
+  settings       Settings?
+
+  @@map("branches")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  phone        String?
+  avatar       String?
+  role         Role     @default(CASHIER)
+  isActive     Boolean  @default(true)
+  branchId     String?
+  branch       Branch?  @relation(fields: [branchId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  ordersCreated       Order[]               @relation("OrderCreatedBy")
+  stockMovements      StockMovement[]
+
+  @@index([branchId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Menu
+// ---------------------------------------------------------------------------
+
+model Category {
+  id           String   @id @default(uuid())
+  branchId     String
+  branch       Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  image        String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  menuItems MenuItem[]
+
+  @@index([branchId])
+  @@map("categories")
+}
+
+model MenuItem {
+  id             String         @id @default(uuid())
+  branchId       String
+  branch         Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       Category       @relation(fields: [categoryId], references: [id])
+  name           String
+  itemCode       String
+  subcategory    String?
+  description    String?
+  price          Decimal        @db.Decimal(10, 2)
+  discountPrice  Decimal?       @db.Decimal(10, 2)
+  tax            Decimal        @default(0) @db.Decimal(5, 2)
+  image          String?
+  prepTimeMins   Int?
+  ingredients    String[]       @default([])
+  tags           String[]       @default([])
+  isVeg          Boolean        @default(true)
+  spicyLevel     SpicyLevel     @default(NONE)
+  isFeatured     Boolean        @default(false)
+  isBestseller   Boolean        @default(false)
+  displayOrder   Int            @default(0)
+  status         MenuItemStatus @default(ACTIVE)
+
+  // Visibility controls
+  showOnQr       Boolean  @default(true)
+  posOnly        Boolean  @default(false)
+  isTempHidden   Boolean  @default(false)
+  isSeasonal     Boolean  @default(false)
+  isAvailable    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+  recipe     MenuItemIngredient[]
+
+  @@unique([branchId, itemCode])
+  @@index([branchId, categoryId])
+  @@map("menu_items")
+}
+
+// Maps a menu item to the inventory ingredients consumed per unit sold,
+// so completing an order can automatically deduct stock.
+model MenuItemIngredient {
+  id              String        @id @default(uuid())
+  menuItemId      String
+  menuItem        MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  quantityPerUnit Decimal       @db.Decimal(10, 2)
+
+  @@unique([menuItemId, inventoryItemId])
+  @@map("menu_item_ingredients")
+}
+
+// ---------------------------------------------------------------------------
+// QR & Tables
+// ---------------------------------------------------------------------------
+
+model RestaurantTable {
+  id        String      @id @default(uuid())
+  branchId  String
+  branch    Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  code      String
+  name      String
+  capacity  Int         @default(2)
+  status    TableStatus @default(AVAILABLE)
+  mergedInto String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  qrCode QRCode?
+  orders Order[]
+
+  @@unique([branchId, code])
+  @@map("restaurant_tables")
+}
+
+model QRCode {
+  id        String   @id @default(uuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  tableId   String?  @unique
+  table     RestaurantTable? @relation(fields: [tableId], references: [id])
+  type      QrType   @default(BRANCH)
+  token     String   @unique
+  imageUrl  String?
+  isActive  Boolean  @default(true)
+  scanCount Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([branchId])
+  @@map("qr_codes")
+}
+
+// ---------------------------------------------------------------------------
+// Inventory
+// ---------------------------------------------------------------------------
+
+model Supplier {
+  id        String   @id @default(uuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name      String
+  contact   String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+  inventoryItems InventoryItem[]
+
+  @@map("suppliers")
+}
+
+model InventoryItem {
+  id            String    @id @default(uuid())
+  branchId      String
+  branch        Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name          String
+  unit          String    @default("unit")
+  quantity      Decimal   @default(0) @db.Decimal(10, 2)
+  reorderLevel  Decimal   @default(0) @db.Decimal(10, 2)
+  costPerUnit   Decimal   @default(0) @db.Decimal(10, 2)
+  expiryDate    DateTime?
+  supplierId    String?
+  supplier      Supplier? @relation(fields: [supplierId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  stockMovements     StockMovement[]
+  purchaseOrderItems PurchaseOrderItem[]
+  usedInRecipes      MenuItemIngredient[]
+
+  @@index([branchId])
+  @@map("inventory_items")
+}
+
+model StockMovement {
+  id              String            @id @default(uuid())
+  inventoryItemId String
+  inventoryItem   InventoryItem     @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  type            StockMovementType
+  quantity        Decimal           @db.Decimal(10, 2)
+  reason          String?
+  referenceOrderId String?
+  createdById     String?
+  createdBy       User?             @relation(fields: [createdById], references: [id])
+  createdAt       DateTime          @default(now())
+
+  @@index([inventoryItemId])
+  @@map("stock_movements")
+}
+
+model PurchaseOrder {
+  id          String              @id @default(uuid())
+  branchId    String
+  branch      Branch              @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  supplierId  String
+  supplier    Supplier            @relation(fields: [supplierId], references: [id])
+  status      PurchaseOrderStatus @default(DRAFT)
+  totalAmount Decimal             @default(0) @db.Decimal(10, 2)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  items PurchaseOrderItem[]
+
+  @@index([branchId])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  quantity        Decimal       @db.Decimal(10, 2)
+  unitCost        Decimal       @db.Decimal(10, 2)
+
+  @@map("purchase_order_items")
+}
+
+// ---------------------------------------------------------------------------
+// Customers
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id              String          @id @default(uuid())
+  name            String
+  email           String?
+  phone           String?         @unique
+  loyaltyPoints   Int             @default(0)
+  membershipLevel MembershipLevel @default(BRONZE)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  orders Order[]
+
+  @@map("customers")
+}
+
+// ---------------------------------------------------------------------------
+// Orders / POS
+// ---------------------------------------------------------------------------
+
+model Coupon {
+  id        String     @id @default(uuid())
+  code      String     @unique
+  type      CouponType @default(PERCENT)
+  value     Decimal    @db.Decimal(10, 2)
+  isActive  Boolean    @default(true)
+  expiresAt DateTime?
+  createdAt DateTime   @default(now())
+
+  orders Order[]
+
+  @@map("coupons")
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  orderNumber String      @unique
+  branchId    String
+  branch      Branch      @relation(fields: [branchId], references: [id])
+  tableId     String?
+  table       RestaurantTable? @relation(fields: [tableId], references: [id])
+  customerId  String?
+  customer    Customer?   @relation(fields: [customerId], references: [id])
+  orderType   OrderType   @default(DINE_IN)
+  status      OrderStatus @default(PENDING)
+
+  subtotal Decimal  @default(0) @db.Decimal(10, 2)
+  discount Decimal  @default(0) @db.Decimal(10, 2)
+  tax      Decimal  @default(0) @db.Decimal(10, 2)
+  total    Decimal  @default(0) @db.Decimal(10, 2)
+
+  couponId String?
+  coupon   Coupon? @relation(fields: [couponId], references: [id])
+
+  isHeld      Boolean  @default(false)
+  notes       String?
+  createdById String?
+  createdBy   User?    @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([branchId, status])
+  @@index([branchId, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  nameSnapshot  String
+  priceSnapshot Decimal @db.Decimal(10, 2)
+  quantity   Int      @default(1)
+  subtotal   Decimal  @db.Decimal(10, 2)
+  notes      String?
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  orderId        String
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method         PaymentMethod
+  amount         Decimal       @db.Decimal(10, 2)
+  transactionRef String?
+  paidAt         DateTime      @default(now())
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+model Settings {
+  id              String  @id @default(uuid())
+  branchId        String  @unique
+  branch          Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  restaurantName  String  @default("My Restaurant")
+  logo            String?
+  address         String?
+  contact         String?
+  gstVat          String?
+  currency        String  @default("INR")
+  language        String  @default("en")
+  theme           String  @default("light")
+
+  notifyLowStock       Boolean @default(true)
+  notifyNewOrders      Boolean @default(true)
+  notifyCompletedOrders Boolean @default(false)
+  notifyInventoryAlerts Boolean @default(true)
+  notifyPaymentAlerts  Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
