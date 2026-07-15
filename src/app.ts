@@ -20,12 +20,15 @@ export function createApp() {
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Allow non-browser requests (no Origin header) and any explicitly
-        // trusted frontend URL.
-        if (!origin || env.clientUrls.includes(origin)) {
-          return callback(null, true);
-        }
-        callback(new Error(`Origin ${origin} is not allowed by CORS`));
+        // Allow non-browser requests (no Origin header), any explicitly
+        // trusted URL, and any Vercel deployment (production, git-branch
+        // alias, or per-commit preview) of this specific frontend project —
+        // Vercel mints a new URL per deploy, so a fixed allowlist alone
+        // breaks on every preview. A disallowed origin resolves to `false`
+        // (browser blocks it as a normal CORS error) rather than throwing,
+        // which previously surfaced as a 500 on the preflight request.
+        const isKnownVercelDeploy = origin ? /^https:\/\/rms-ngamani-frontend[a-z0-9-]*\.vercel\.app$/.test(origin) : false;
+        callback(null, !origin || env.clientUrls.includes(origin) || isKnownVercelDeploy);
       },
       credentials: true,
     })
