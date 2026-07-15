@@ -49,7 +49,7 @@ async function resolveCoupon(couponCode: string | undefined, subtotal: number) {
   return { couponId: coupon.id, couponDiscount: Math.min(discount, subtotal) };
 }
 
-function generateOrderNumber() {
+export function generateOrderNumber() {
   const now = new Date();
   const stamp = now.toISOString().replace(/[-:T.Z]/g, "").slice(0, 12);
   return `ORD-${stamp}-${Math.floor(Math.random() * 900 + 100)}`;

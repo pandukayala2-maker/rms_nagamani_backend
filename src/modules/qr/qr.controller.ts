@@ -34,4 +34,9 @@ export const qrController = {
     const menu = await qrService.getPublicMenu(req.params.token);
     sendSuccess(res, menu, "Menu fetched");
   }),
+
+  placePublicOrder: asyncHandler(async (req: Request, res: Response) => {
+    const result = await qrService.placeOrder(req.params.token, req.body);
+    sendSuccess(res, result, "Order placed", 201);
+  }),
 };

@@ -14,12 +14,17 @@ import settingsRoutes from "../modules/settings/settings.routes";
 import reportsRoutes from "../modules/reports/reports.routes";
 import { qrController } from "../modules/qr/qr.controller";
 import { validate } from "../middleware/validate";
-import { tokenParamSchema } from "../modules/qr/qr.validator";
+import { publicOrderSchema, tokenParamSchema } from "../modules/qr/qr.validator";
 
 const router = Router();
 
-// Public, unauthenticated customer-facing QR menu endpoint.
+// Public, unauthenticated customer-facing QR menu endpoints.
 router.get("/public/menu/:token", validate({ params: tokenParamSchema }), qrController.publicMenu);
+router.post(
+  "/public/menu/:token/order",
+  validate({ params: tokenParamSchema, body: publicOrderSchema }),
+  qrController.placePublicOrder
+);
 
 router.use("/auth", authRoutes);
 router.use("/categories", categoryRoutes);
