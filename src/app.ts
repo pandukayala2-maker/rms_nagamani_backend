@@ -17,7 +17,19 @@ export function createApp() {
   const app = express();
 
   app.use(helmet({ crossOriginResourcePolicy: false }));
-  app.use(cors({ origin: env.clientUrl, credentials: true }));
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Allow non-browser requests (no Origin header) and any explicitly
+        // trusted frontend URL.
+        if (!origin || env.clientUrls.includes(origin)) {
+          return callback(null, true);
+        }
+        callback(new Error(`Origin ${origin} is not allowed by CORS`));
+      },
+      credentials: true,
+    })
+  );
   app.use(compression());
   app.use(express.json({ limit: "2mb" }));
   app.use(express.urlencoded({ extended: true }));

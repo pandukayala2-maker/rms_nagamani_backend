@@ -25,7 +25,17 @@ export const env = {
   resetPasswordSecret: required("RESET_PASSWORD_SECRET", "dev_reset_secret"),
   resetPasswordExpiresIn: process.env.RESET_PASSWORD_EXPIRES_IN ?? "15m",
 
-  clientUrl: process.env.CLIENT_URL ?? "http://localhost:5173",
+  // Comma-separated list, so multiple frontend URLs (production domain, a
+  // Vercel git-branch alias, preview deployments, etc.) can all be trusted
+  // at once. The first entry is used wherever a single canonical URL is
+  // needed (e.g. building QR code target links).
+  clientUrls: (process.env.CLIENT_URL ?? "http://localhost:5173")
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean),
+  get clientUrl() {
+    return this.clientUrls[0];
+  },
   cookieSecret: process.env.COOKIE_SECRET ?? "dev_cookie_secret",
 
   uploadDir: process.env.UPLOAD_DIR ?? "uploads",
