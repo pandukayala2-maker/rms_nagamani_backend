@@ -14,6 +14,10 @@ export const categoryRepository = {
     return prisma.category.findFirst({ where: { id, branchId } });
   },
 
+  countMenuItems(id: string) {
+    return prisma.menuItem.count({ where: { categoryId: id } });
+  },
+
   create(data: Prisma.CategoryUncheckedCreateInput) {
     return prisma.category.create({ data });
   },

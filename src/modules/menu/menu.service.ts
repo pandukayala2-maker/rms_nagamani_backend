@@ -58,6 +58,12 @@ export const menuService = {
 
   async remove(id: string, branchId: string) {
     await this.getById(id, branchId);
+    const orderItemCount = await menuRepository.countOrderItems(id);
+    if (orderItemCount > 0) {
+      throw ApiError.conflict(
+        `This item has ${orderItemCount} order${orderItemCount === 1 ? "" : "s"} in its history and can't be deleted. Disable it instead.`
+      );
+    }
     await menuRepository.remove(id);
   },
 

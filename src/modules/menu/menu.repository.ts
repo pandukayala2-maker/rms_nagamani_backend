@@ -64,6 +64,10 @@ export const menuRepository = {
     return prisma.menuItem.delete({ where: { id } });
   },
 
+  countOrderItems(id: string) {
+    return prisma.orderItem.count({ where: { menuItemId: id } });
+  },
+
   findManyByIds(ids: string[], branchId: string) {
     return prisma.menuItem.findMany({ where: { id: { in: ids }, branchId } });
   },

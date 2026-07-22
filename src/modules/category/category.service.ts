@@ -19,6 +19,12 @@ export const categoryService = {
   async remove(id: string, branchId: string) {
     const existing = await categoryRepository.findById(id, branchId);
     if (!existing) throw ApiError.notFound("Category not found");
+    const menuItemCount = await categoryRepository.countMenuItems(id);
+    if (menuItemCount > 0) {
+      throw ApiError.conflict(
+        `This category still has ${menuItemCount} menu item${menuItemCount === 1 ? "" : "s"}. Reassign or delete them first.`
+      );
+    }
     await categoryRepository.remove(id);
   },
 };
