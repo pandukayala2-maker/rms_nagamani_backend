@@ -75,11 +75,6 @@ enum MembershipLevel {
   PLATINUM
 }
 
-enum QrType {
-  BRANCH
-  TABLE
-}
-
 enum CouponType {
   PERCENT
   FLAT
@@ -112,7 +107,7 @@ model Branch {
   categories     Category[]
   menuItems      MenuItem[]
   tables         RestaurantTable[]
-  qrCodes        QRCode[]
+  qrCode         QRCode?
   inventoryItems InventoryItem[]
   suppliers      Supplier[]
   purchaseOrders PurchaseOrder[]
@@ -265,7 +260,6 @@ model RestaurantTable {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  qrCode QRCode?
   orders Order[]
 
   @@unique([branchId, code])
@@ -274,11 +268,8 @@ model RestaurantTable {
 
 model QRCode {
   id        String   @id @default(uuid())
-  branchId  String
+  branchId  String   @unique
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  tableId   String?  @unique
-  table     RestaurantTable? @relation(fields: [tableId], references: [id])
-  type      QrType   @default(BRANCH)
   token     String   @unique
   imageUrl  String?
   isActive  Boolean  @default(true)
@@ -286,7 +277,6 @@ model QRCode {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([branchId])
   @@map("qr_codes")
 }
 

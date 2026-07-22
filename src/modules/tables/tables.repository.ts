@@ -5,7 +5,6 @@ export const tablesRepository = {
   findMany(branchId: string) {
     return prisma.restaurantTable.findMany({
       where: { branchId },
-      include: { qrCode: { select: { id: true, token: true, isActive: true } } },
       orderBy: { code: "asc" },
     });
   },

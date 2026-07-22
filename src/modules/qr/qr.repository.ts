@@ -2,16 +2,8 @@ import { prisma } from "../../config/prisma";
 import type { Prisma } from "@prisma/client";
 
 export const qrRepository = {
-  findMany(branchId: string) {
-    return prisma.qRCode.findMany({
-      where: { branchId },
-      include: { table: { select: { id: true, name: true, code: true } } },
-      orderBy: { createdAt: "desc" },
-    });
-  },
-
-  findById(id: string, branchId: string) {
-    return prisma.qRCode.findFirst({ where: { id, branchId } });
+  findByBranch(branchId: string) {
+    return prisma.qRCode.findUnique({ where: { branchId } });
   },
 
   findByToken(token: string) {

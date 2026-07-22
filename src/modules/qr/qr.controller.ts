@@ -5,28 +5,23 @@ import { sendSuccess } from "../../utils/apiResponse";
 import { asyncHandler } from "../../utils/asyncHandler";
 
 export const qrController = {
-  list: asyncHandler(async (req: Request, res: Response) => {
-    const codes = await qrService.list(req.user!.branchId!);
-    sendSuccess(res, codes);
-  }),
-
-  create: asyncHandler(async (req: Request, res: Response) => {
-    const qr = await qrService.create(req.user!.branchId!, req.body);
-    sendSuccess(res, qr, "QR code generated", 201);
+  get: asyncHandler(async (req: Request, res: Response) => {
+    const qr = await qrService.getOrCreate(req.user!.branchId!);
+    sendSuccess(res, qr);
   }),
 
   regenerate: asyncHandler(async (req: Request, res: Response) => {
-    const qr = await qrService.regenerate(req.params.id, req.user!.branchId!);
+    const qr = await qrService.regenerate(req.user!.branchId!);
     sendSuccess(res, qr, "QR code regenerated");
   }),
 
   toggle: asyncHandler(async (req: Request, res: Response) => {
-    const qr = await qrService.toggle(req.params.id, req.user!.branchId!, req.body.isActive);
+    const qr = await qrService.toggle(req.user!.branchId!, req.body.isActive);
     sendSuccess(res, qr, "QR code status updated");
   }),
 
   download: asyncHandler(async (req: Request, res: Response) => {
-    const imagePath = await qrService.getDownloadPath(req.params.id, req.user!.branchId!);
+    const imagePath = await qrService.getDownloadPath(req.user!.branchId!);
     res.download(path.join(process.cwd(), imagePath!.replace(/^\//, "")));
   }),
 

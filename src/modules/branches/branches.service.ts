@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { qrService } from "../qr/qr.service";
 
 export const branchesService = {
   list() {
@@ -11,6 +12,7 @@ export const branchesService = {
     await prisma.settings.create({
       data: { branchId: branch.id, restaurantName: branch.name },
     });
+    await qrService.create(branch.id);
     return branch;
   },
 

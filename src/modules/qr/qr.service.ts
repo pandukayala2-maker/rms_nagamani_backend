@@ -13,41 +13,39 @@ interface PublicOrderItem {
 }
 
 export const qrService = {
-  list(branchId: string) {
-    return qrRepository.findMany(branchId);
-  },
-
-  async create(branchId: string, input: { type: "BRANCH" | "TABLE"; tableId?: string }) {
+  async create(branchId: string) {
     const token = uuid();
     const targetUrl = `${env.clientUrl}/m/${token}`;
     const imageUrl = await generateQrImage(token, targetUrl);
-    return qrRepository.create({
-      branchId,
-      type: input.type,
-      tableId: input.tableId,
-      token,
-      imageUrl,
-    });
+    return qrRepository.create({ branchId, token, imageUrl });
   },
 
-  async regenerate(id: string, branchId: string) {
-    const existing = await qrRepository.findById(id, branchId);
+  // Every branch has exactly one QR code; create it lazily on first access
+  // so existing branches (and newly created ones) always have one.
+  async getOrCreate(branchId: string) {
+    const existing = await qrRepository.findByBranch(branchId);
+    if (existing) return existing;
+    return qrService.create(branchId);
+  },
+
+  async regenerate(branchId: string) {
+    const existing = await qrRepository.findByBranch(branchId);
     if (!existing) throw ApiError.notFound("QR code not found");
     deleteQrImage(existing.token);
     const token = uuid();
     const targetUrl = `${env.clientUrl}/m/${token}`;
     const imageUrl = await generateQrImage(token, targetUrl);
-    return qrRepository.update(id, { token, imageUrl, scanCount: 0 });
+    return qrRepository.update(existing.id, { token, imageUrl, scanCount: 0 });
   },
 
-  async toggle(id: string, branchId: string, isActive: boolean) {
-    const existing = await qrRepository.findById(id, branchId);
+  async toggle(branchId: string, isActive: boolean) {
+    const existing = await qrRepository.findByBranch(branchId);
     if (!existing) throw ApiError.notFound("QR code not found");
-    return qrRepository.update(id, { isActive });
+    return qrRepository.update(existing.id, { isActive });
   },
 
-  async getDownloadPath(id: string, branchId: string) {
-    const existing = await qrRepository.findById(id, branchId);
+  async getDownloadPath(branchId: string) {
+    const existing = await qrRepository.findByBranch(branchId);
     if (!existing) throw ApiError.notFound("QR code not found");
     return existing.imageUrl;
   },
@@ -59,7 +57,7 @@ export const qrService = {
     }
     await qrRepository.incrementScan(qr.id);
 
-    const [branch, settings, categories, menuItems] = await Promise.all([
+    const [branch, settings, categories, menuItems, tables] = await Promise.all([
       prisma.branch.findUnique({ where: { id: qr.branchId } }),
       prisma.settings.findUnique({ where: { branchId: qr.branchId } }),
       prisma.category.findMany({
@@ -76,6 +74,11 @@ export const qrService = {
           isTempHidden: false,
         },
         orderBy: { displayOrder: "asc" },
+      }),
+      prisma.restaurantTable.findMany({
+        where: { branchId: qr.branchId, status: { not: "RESERVED" } },
+        orderBy: { code: "asc" },
+        select: { id: true, name: true, code: true },
       }),
     ]);
 
@@ -96,7 +99,7 @@ export const qrService = {
         contact: settings?.contact ?? branch.contact ?? null,
         currency: settings?.currency ?? branch.currency,
       },
-      table: qr.type === "TABLE" ? await getTableInfo(qr.tableId) : null,
+      tables,
       categories: categoriesWithItems,
     };
   },
@@ -104,14 +107,32 @@ export const qrService = {
   // Lets a customer scanning a QR code place an order without logging in.
   // Deliberately re-checks visibility (status/showOnQr/etc.) server-side so a
   // crafted request can never order a hidden, disabled, or POS-only item, and
-  // never touches any data outside this one QR code's branch/table.
+  // never touches any data outside this one QR code's branch. The table (for
+  // dine-in) is likewise re-validated against the branch, not trusted as-is.
   async placeOrder(
     token: string,
-    input: { items: PublicOrderItem[]; customerName?: string; customerPhone?: string }
+    input: {
+      items: PublicOrderItem[];
+      customerName?: string;
+      customerPhone?: string;
+      orderType?: "DINE_IN" | "TAKEAWAY";
+      tableId?: string;
+    }
   ) {
     const qr = await qrRepository.findByToken(token);
     if (!qr || !qr.isActive) {
       throw ApiError.notFound("This QR menu is not available");
+    }
+
+    const orderType = input.orderType === "DINE_IN" ? "DINE_IN" : "TAKEAWAY";
+    let tableId: string | null = null;
+    if (orderType === "DINE_IN") {
+      if (!input.tableId) throw ApiError.badRequest("Select a table for dine-in orders");
+      const table = await prisma.restaurantTable.findFirst({
+        where: { id: input.tableId, branchId: qr.branchId },
+      });
+      if (!table) throw ApiError.badRequest("Selected table is not valid for this restaurant");
+      tableId = table.id;
     }
 
     const requestedIds = input.items.map((i) => i.menuItemId);
@@ -156,8 +177,8 @@ export const qrService = {
       data: {
         orderNumber: generateOrderNumber(),
         branchId: qr.branchId,
-        tableId: qr.tableId,
-        orderType: qr.type === "TABLE" ? "DINE_IN" : "TAKEAWAY",
+        tableId,
+        orderType,
         status: "PENDING",
         subtotal,
         discount: 0,
@@ -170,9 +191,9 @@ export const qrService = {
       },
     });
 
-    if (qr.tableId) {
+    if (tableId) {
       await prisma.restaurantTable.update({
-        where: { id: qr.tableId },
+        where: { id: tableId },
         data: { status: "OCCUPIED" },
       });
     }
@@ -180,11 +201,3 @@ export const qrService = {
     return { orderNumber: order.orderNumber, total: Number(order.total), status: order.status };
   },
 };
-
-async function getTableInfo(tableId: string | null) {
-  if (!tableId) return null;
-  return prisma.restaurantTable.findUnique({
-    where: { id: tableId },
-    select: { id: true, name: true, code: true },
-  });
-}
