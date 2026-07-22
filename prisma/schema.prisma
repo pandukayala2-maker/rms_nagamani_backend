@@ -113,23 +113,33 @@ model Branch {
   purchaseOrders PurchaseOrder[]
   orders         Order[]
   settings       Settings?
+  departments    Department[]
+  designations   Designation[]
+  shifts         Shift[]
 
   @@map("branches")
 }
 
 model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  password     String
-  phone        String?
-  avatar       String?
-  role         Role     @default(CASHIER)
-  isActive     Boolean  @default(true)
-  branchId     String?
-  branch       Branch?  @relation(fields: [branchId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  password      String
+  phone         String?
+  avatar        String?
+  role          Role     @default(CASHIER)
+  isActive      Boolean  @default(true)
+  branchId      String?
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+  employeeCode  String?
+  departmentId  String?
+  department    Department?  @relation(fields: [departmentId], references: [id])
+  designationId String?
+  designation   Designation? @relation(fields: [designationId], references: [id])
+  shiftId       String?
+  shift         Shift?       @relation(fields: [shiftId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
@@ -138,6 +148,66 @@ model User {
 
   @@index([branchId])
   @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// HR / Role Management
+// ---------------------------------------------------------------------------
+
+model Department {
+  id        String   @id @default(uuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  designations Designation[]
+  users        User[]
+
+  @@unique([branchId, name])
+  @@map("departments")
+}
+
+model Designation {
+  id           String      @id @default(uuid())
+  branchId     String
+  branch       Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name         String
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  users User[]
+
+  @@unique([branchId, name])
+  @@map("designations")
+}
+
+model Shift {
+  id        String   @id @default(uuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name      String
+  startTime String
+  endTime   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@unique([branchId, name])
+  @@map("shifts")
+}
+
+model RolePermission {
+  id             String   @id @default(uuid())
+  role           Role     @unique
+  allowedNavKeys String[] @default([])
+  updatedAt      DateTime @updatedAt
+
+  @@map("role_permissions")
 }
 
 model RefreshToken {

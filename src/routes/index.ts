@@ -12,6 +12,8 @@ import branchesRoutes from "../modules/branches/branches.routes";
 import customersRoutes from "../modules/customers/customers.routes";
 import settingsRoutes from "../modules/settings/settings.routes";
 import reportsRoutes from "../modules/reports/reports.routes";
+import hrRoutes from "../modules/hr/hr.routes";
+import permissionsRoutes from "../modules/permissions/permissions.routes";
 import { qrController } from "../modules/qr/qr.controller";
 import { validate } from "../middleware/validate";
 import { publicOrderSchema, tokenParamSchema } from "../modules/qr/qr.validator";
@@ -39,5 +41,7 @@ router.use("/branches", branchesRoutes);
 router.use("/customers", customersRoutes);
 router.use("/settings", settingsRoutes);
 router.use("/reports", reportsRoutes);
+router.use("/hr", hrRoutes);
+router.use("/permissions", permissionsRoutes);
 
 export default router;
