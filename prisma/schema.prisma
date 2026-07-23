@@ -68,6 +68,11 @@ enum StockMovementType {
   WASTE
 }
 
+enum PosSessionStatus {
+  OPEN
+  CLOSED
+}
+
 enum MembershipLevel {
   BRONZE
   SILVER
@@ -116,6 +121,7 @@ model Branch {
   departments    Department[]
   designations   Designation[]
   shifts         Shift[]
+  posSessions    PosSession[]
 
   @@map("branches")
 }
@@ -145,6 +151,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   ordersCreated       Order[]               @relation("OrderCreatedBy")
   stockMovements      StockMovement[]
+  posSessions         PosSession[]
 
   @@index([branchId])
   @@map("users")
@@ -500,6 +507,8 @@ model Order {
   notes       String?
   createdById String?
   createdBy   User?    @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  posSessionId String?
+  posSession   PosSession? @relation(fields: [posSessionId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -538,6 +547,30 @@ model Payment {
 
   @@index([orderId])
   @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// POS Sessions (cash-drawer open/close reconciliation)
+// ---------------------------------------------------------------------------
+
+model PosSession {
+  id           String            @id @default(uuid())
+  branchId     String
+  branch       Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation(fields: [userId], references: [id])
+  openedAt     DateTime          @default(now())
+  openingCash  Decimal           @db.Decimal(10, 2)
+  closedAt     DateTime?
+  closingCash  Decimal?          @db.Decimal(10, 2)
+  expectedCash Decimal?          @db.Decimal(10, 2)
+  status       PosSessionStatus  @default(OPEN)
+  notes        String?
+
+  orders Order[]
+
+  @@index([branchId, userId, status])
+  @@map("pos_sessions")
 }
 
 // ---------------------------------------------------------------------------

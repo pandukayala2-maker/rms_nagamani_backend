@@ -1,6 +1,7 @@
 import { ordersRepository } from "./orders.repository";
 import { ApiError } from "../../utils/ApiError";
 import { prisma } from "../../config/prisma";
+import { posSessionsRepository } from "../pos-sessions/pos-sessions.repository";
 
 interface CartItem {
   menuItemId: string;
@@ -91,6 +92,11 @@ export const ordersService = {
     const totalDiscount = couponDiscount + input.discount;
     const total = Math.max(0, subtotal - totalDiscount + tax);
 
+    // Attribute the order to the cashier's open counter session for
+    // reconciliation, if they have one open. Not required — a cashier can
+    // still ring up sales without opening a counter first.
+    const openSession = await posSessionsRepository.findOpenForUser(branchId, createdById);
+
     const order = await ordersRepository.create({
       orderNumber: generateOrderNumber(),
       branchId,
@@ -105,6 +111,7 @@ export const ordersService = {
       notes: input.notes,
       isHeld: input.isHeld,
       createdById,
+      posSessionId: openSession?.id,
       items: { create: orderItems },
     } as never);
 
