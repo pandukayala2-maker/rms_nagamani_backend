@@ -97,4 +97,10 @@ export const inventoryService = {
     }
     return inventoryRepository.updatePurchaseOrderStatus(id, "RECEIVED");
   },
+
+  async setPurchaseOrderPaid(id: string, branchId: string, isPaid: boolean) {
+    const po = await inventoryRepository.findPurchaseOrderById(id, branchId);
+    if (!po) throw ApiError.notFound("Purchase order not found");
+    return inventoryRepository.setPurchaseOrderPaid(id, isPaid);
+  },
 };

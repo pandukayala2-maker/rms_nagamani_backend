@@ -41,3 +41,7 @@ export const createPurchaseOrderSchema = z.object({
 export const idParamSchema = z.object({
   id: z.string().uuid(),
 });
+
+export const setPurchaseOrderPaidSchema = z.object({
+  isPaid: z.coerce.boolean(),
+});

@@ -122,6 +122,7 @@ model Branch {
   designations   Designation[]
   shifts         Shift[]
   posSessions    PosSession[]
+  expenses       Expense[]
 
   @@map("branches")
 }
@@ -425,6 +426,7 @@ model PurchaseOrder {
   supplier    Supplier            @relation(fields: [supplierId], references: [id])
   status      PurchaseOrderStatus @default(DRAFT)
   totalAmount Decimal             @default(0) @db.Decimal(10, 2)
+  isPaid      Boolean             @default(false)
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 
@@ -571,6 +573,25 @@ model PosSession {
 
   @@index([branchId, userId, status])
   @@map("pos_sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Expenses (simplified P&L / Balance Sheet inputs)
+// ---------------------------------------------------------------------------
+
+model Expense {
+  id        String   @id @default(uuid())
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  category  String
+  amount    Decimal  @db.Decimal(10, 2)
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([branchId, date])
+  @@map("expenses")
 }
 
 // ---------------------------------------------------------------------------

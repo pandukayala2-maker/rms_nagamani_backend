@@ -73,4 +73,8 @@ export const inventoryRepository = {
   findPurchaseOrderById(id: string, branchId: string) {
     return prisma.purchaseOrder.findFirst({ where: { id, branchId }, include: { items: true } });
   },
+
+  setPurchaseOrderPaid(id: string, isPaid: boolean) {
+    return prisma.purchaseOrder.update({ where: { id }, data: { isPaid } });
+  },
 };

@@ -63,4 +63,11 @@ router.get(
   })
 );
 
+router.get(
+  "/balance-sheet",
+  asyncHandler(async (req, res) => {
+    sendSuccess(res, await reportsService.balanceSheet(req.user!.branchId!));
+  })
+);
+
 export default router;

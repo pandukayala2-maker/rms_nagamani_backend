@@ -67,4 +67,13 @@ export const inventoryController = {
     );
     sendSuccess(res, po, "Purchase order received and stock updated");
   }),
+
+  setPurchaseOrderPaid: asyncHandler(async (req: Request, res: Response) => {
+    const po = await inventoryService.setPurchaseOrderPaid(
+      req.params.id,
+      req.user!.branchId!,
+      req.body.isPaid
+    );
+    sendSuccess(res, po, "Purchase order payment status updated");
+  }),
 };

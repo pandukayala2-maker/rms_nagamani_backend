@@ -7,6 +7,7 @@ import {
   createPurchaseOrderSchema,
   createSupplierSchema,
   idParamSchema,
+  setPurchaseOrderPaidSchema,
   stockMovementSchema,
   updateInventoryItemSchema,
 } from "./inventory.validator";
@@ -28,6 +29,11 @@ router.post(
   "/purchase-orders/:id/receive",
   validate({ params: idParamSchema }),
   inventoryController.receivePurchaseOrder
+);
+router.patch(
+  "/purchase-orders/:id/pay",
+  validate({ params: idParamSchema, body: setPurchaseOrderPaidSchema }),
+  inventoryController.setPurchaseOrderPaid
 );
 
 router.get("/", inventoryController.list);
