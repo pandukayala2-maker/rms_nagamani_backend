@@ -16,6 +16,7 @@ import hrRoutes from "../modules/hr/hr.routes";
 import permissionsRoutes from "../modules/permissions/permissions.routes";
 import posSessionsRoutes from "../modules/pos-sessions/pos-sessions.routes";
 import expensesRoutes from "../modules/expenses/expenses.routes";
+import accountsRoutes from "../modules/accounts/accounts.routes";
 import { qrController } from "../modules/qr/qr.controller";
 import { validate } from "../middleware/validate";
 import { publicOrderSchema, tokenParamSchema } from "../modules/qr/qr.validator";
@@ -47,5 +48,6 @@ router.use("/hr", hrRoutes);
 router.use("/permissions", permissionsRoutes);
 router.use("/pos-sessions", posSessionsRoutes);
 router.use("/expenses", expensesRoutes);
+router.use("/accounts", accountsRoutes);
 
 export default router;

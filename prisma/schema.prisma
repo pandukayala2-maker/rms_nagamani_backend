@@ -73,6 +73,14 @@ enum PosSessionStatus {
   CLOSED
 }
 
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
 enum MembershipLevel {
   BRONZE
   SILVER
@@ -123,6 +131,7 @@ model Branch {
   shifts         Shift[]
   posSessions    PosSession[]
   expenses       Expense[]
+  accounts       Account[]
 
   @@map("branches")
 }
@@ -587,11 +596,34 @@ model Expense {
   amount    Decimal  @db.Decimal(10, 2)
   date      DateTime
   notes     String?
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([branchId, date])
   @@map("expenses")
+}
+
+model Account {
+  id        String      @id @default(uuid())
+  branchId  String
+  branch    Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  code      String?
+  name      String
+  type      AccountType
+  parentId  String?
+  parent    Account?    @relation("AccountHierarchy", fields: [parentId], references: [id])
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  children Account[] @relation("AccountHierarchy")
+  expenses Expense[]
+
+  @@unique([branchId, code])
+  @@index([branchId])
+  @@map("accounts")
 }
 
 // ---------------------------------------------------------------------------

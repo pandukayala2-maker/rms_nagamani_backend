@@ -9,6 +9,7 @@ export const createExpenseSchema = z.object({
   amount: z.coerce.number().positive(),
   date: z.coerce.date(),
   notes: z.string().max(500).optional(),
+  accountId: z.string().uuid().optional(),
 });
 
 export const updateExpenseSchema = createExpenseSchema.partial();
