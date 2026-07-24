@@ -1,20 +1,32 @@
 // Canonical sidebar/route access keys. Keep in sync with
-// frontend/src/config/navKeys.ts — this list drives the Role Permissions
-// admin UI and what RolePermission.allowedNavKeys can contain.
+// frontend/src/config/navKeys.ts and frontend/src/config/modules.ts — this
+// list drives the Role Permissions admin UI and what
+// RolePermission.allowedNavKeys can contain.
 export const NAV_KEYS = [
+  // Admin module
   "dashboard",
+  "branches",
+  "shifts",
+  "departments",
+  "designations",
+  "employees",
+  "role-management",
+  "inventory",
+  "settings",
+  // POS Counter module
   "pos",
-  "orders",
-  "tables",
+  // Menu module
   "menu",
   "qr",
-  "inventory",
-  "customers",
-  "role-management",
-  "reports",
+  // Accounts & Reports module
   "pos-report",
+  "orders",
+  "profit-loss",
+  "balance-sheet",
   "expenses",
-  "settings",
+  "customers",
+  "tables",
+  "chart-of-accounts",
 ] as const;
 
 export type NavKey = (typeof NAV_KEYS)[number];
